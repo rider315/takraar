@@ -29,7 +29,7 @@ you cannot predict a sentence you have not started hearing.
 
 So the entire job is removing the turn.
 
-## Five things that do that
+## Six things that do that
 
 **1. Never wait for the sentence to end.**
 Chrome's speech recognition emits interim results while you are still talking. I
@@ -61,6 +61,24 @@ volume. Without this, a shouted accusation arrives as a calm librarian reading i
 aloud, and the argument dies in transit. This is the cheapest high-leverage thing
 in the whole build.
 
+**6. A position can be taken back.**
+Every finished utterance becomes a claim in the rail at the bottom. Your own are
+clickable, and taking one back strikes it through on both screens at the same
+moment. This is the mechanism for changing your mind, and it needs to be a
+mechanism rather than a sentence. Saying "fine, I take that back" out loud only
+works if the other person catches it, believes it, and knows which part of the
+last five minutes you meant — and across a language barrier all three of those
+fail more often than they work. Pointing at the exact claim and withdrawing it
+is unambiguous in a way that speech is not.
+
+It also gives the second translation pass somewhere to live. Chunks are
+translated cold, one clause at a time, because that is the only way to be fast.
+When the utterance ends, the whole thing is translated again as a single unit,
+where the engine can see the sentence it is actually translating, and that
+corrected version is what becomes the claim and what replaces the text on the
+rail. The audio was already good enough to argue with. This is what gets
+remembered.
+
 ## What I measured, and what it changed
 
 Everything below came out of testing, not planning. All of it changed the design.
@@ -74,6 +92,8 @@ Everything below came out of testing, not planning. All of it changed the design
 | `"You are not listening to me at all"` → `"तुम मेरी बात सुन ही नहीं रहे हो"` (correct) | Chunk on **pauses**, which are clause boundaries, not every N words |
 | Short chunks overtook long ones and played out of order | Added an ordered output queue. Arrival order, never finish order |
 | A held-back final word shipped alone: `"all"` → `"सभी"` | Only hold a word back mid-flow, never after a pause |
+| Chunked: `"and you never have"` → `"और आपके पास कभी नहीं होगा"` ("and you will never *have*") | Added a second pass over the finished utterance. Same sentence, translated whole: `"और कभी सुनोगे भी नहीं"` ("and never will listen"). Correct |
+| Second pass costs 113–583ms, after the audio has already played | Kept it off the hot path entirely. It corrects the record, never the speed |
 
 The chunk-size tradeoff is the real tension in the product. Smaller chunks mean
 lower latency and worse translation, because a fragment has no context to
@@ -97,15 +117,21 @@ with a two to four second ear-voice span, not word by word.
   proxy, and a good one for its cost, but it is a proxy.
 - Voice activity detection is a plain RMS threshold. It will trip on a slammed
   door. A real version uses a proper VAD model.
+- **Two-person mode leans on PeerJS's free public signalling server** to
+  introduce the two browsers to each other. Nothing is routed through it once
+  they are connected, but if it is down, room codes stop working. Solo mode is
+  unaffected. Running our own signalling is an afternoon of work and the only
+  reason it is not done is that it is not the interesting part.
 
 ## What I would build next
 
-The thing I most want and did not build: **translate the argument, not the
-sentences.** Right now each chunk is translated cold. But arguments have a
-subject, and the same five words mean different things depending on what is being
-fought about. Feeding the running transcript in as context would fix most of the
-remaining bad translations, and it is the difference between a translator and
-something that is actually following the fight.
+**Translate the argument, not the sentences.** The second pass fixed the
+sentence-level damage, which was the worst of it, but each utterance is still
+translated with no idea what the fight is about. The same five words mean
+different things depending on the subject, and pronouns in particular go wrong
+when the thing being referred to was named a minute ago. Feeding the running
+claims in as context is the next step, and it is the difference between a
+translator and something that is actually following the fight.
 
 Second: the on-screen text should run *ahead* of the audio, not with it. Reading
 is about three times faster than listening, so showing text early is what gives

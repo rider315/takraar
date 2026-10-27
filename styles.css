@@ -136,13 +136,27 @@ select:focus,input:focus{border-color:var(--you)}
 }
 .histhead{display:flex;align-items:center;justify-content:space-between;padding:8px 16px}
 .histhead h3{margin:0;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--mute);font-weight:600}
+.sub2{letter-spacing:0;text-transform:none;font-weight:400;opacity:.7;margin-left:8px}
 #log{
   list-style:none;margin:0;padding:0 16px 12px;overflow-y:auto;
   display:flex;flex-direction:column;gap:8px;
 }
-#log li{font-size:14px;line-height:1.45;padding-left:10px;border-left:2px solid var(--line)}
+#log li{
+  font-size:14px;line-height:1.45;padding:2px 6px 2px 10px;
+  border-left:2px solid var(--line);border-radius:0 6px 6px 0;transition:background .15s;
+}
 #log li.you{border-color:var(--you)}
 #log li.them{border-color:var(--them)}
+#log li.mine{cursor:pointer}
+#log li.mine:hover{background:rgba(255,255,255,.045)}
+#log li.mine:hover .meta::after{content:' · click to take back';color:var(--mute)}
+#log li.retracted .said{text-decoration:line-through;opacity:.4}
+#log li.retracted .src{opacity:.3}
+#log li.retracted{border-color:var(--hot)}
+#log li.retracted .meta::after,
+#log li.retracted.mine:hover .meta::after{content:' · TAKEN BACK';color:var(--hot)}
+#log li.flash{animation:retractflash .9s ease}
+@keyframes retractflash{from{background:rgba(255,45,85,.22)}to{background:transparent}}
 #log .meta{font-family:"JetBrains Mono",monospace;font-size:10.5px;color:var(--mute);letter-spacing:.06em}
 #log .said{color:var(--ink)}
 #log .src{color:var(--mute);font-size:12.5px}

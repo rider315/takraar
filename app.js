@@ -17,6 +17,11 @@
    4. Interruption is a real event. Starting to talk cancels the
       voice in your ear and tells the other side they were cut off.
    5. Volume and pace survive the trip. A shout arrives as a shout.
+   6. A position can be withdrawn. Every finished utterance becomes a
+      claim in the rail, and you can take your own back. It strikes
+      through on both screens at once, so changing your mind is an act
+      the other person watches happen instead of a sentence they have
+      to catch and believe.
    ============================================================ */
 
 /* ---------- languages ---------- */
@@ -81,8 +86,13 @@ const S = {
   theirLive: '',       // translated, what we are showing them saying
   myLive: '',
   seq: 0,
-  sentAt: new Map(),
+  uttSeq: 0,           // utterance counter; a claim is keyed on this
+  uttId: 0,
+  uttText: '',         // everything said in the utterance now in progress
 };
+
+// key ("mine:3" / "theirs:3") -> the <li> holding that claim
+const logMap = new Map();
 
 /* ---------- dom ---------- */
 const $ = (id) => document.getElementById(id);
@@ -237,8 +247,7 @@ function drain() {
     el.origThem.textContent = j.src;
     S.theirLive = `${S.theirLive} ${j.out}`.trim().split(/\s+/).slice(-40).join(' ');
     el.liveThem.textContent = S.theirLive;
-    el.latency.textContent = `translate ${j.ms}ms`;
-    logLine('them', j.out, j.src);
+    el.latency.textContent = `chunk ${j.ms}ms`;
     say(j.out, j.to, j.heat);
   }
 }
@@ -298,9 +307,15 @@ async function startMic() {
   })();
 }
 
+function ensureUtterance() {
+  if (!S.uttId) { S.uttId = ++S.uttSeq; S.uttText = ''; }
+}
+
 function onSpeechStart() {
   S.iSpeak = true;
   S.quietSince = 0;
+  S.uttId = ++S.uttSeq;
+  S.uttText = '';
   el.railYou.classList.add('active');
 
   // The interruption. Kill their voice in my ear immediately, drop
@@ -318,7 +333,17 @@ function onSpeechEnd() {
   S.iSpeak = false;
   S.quietSince = 0;
   el.railYou.classList.remove('active');
-  send({ t: 'stop' });
+
+  // The finished utterance is the claim. Chunks were for speed; this is
+  // for the record, and it is the thing that can be withdrawn later.
+  const utt = S.uttId;
+  const text = S.uttText.trim();
+  const msg = { t: 'stop', utt, text, lang: S.mine };
+  send(msg);
+  if (text) claim('you', text, '', `mine:${utt}`, utt);
+  if (S.solo) receive(msg);
+  S.uttId = 0;
+  S.uttText = '';
 }
 
 function flash(node) {
@@ -407,17 +432,15 @@ function handleTranscript(finalT, interimT) {
 
 function emit(text, newPointer) {
   if (!text.trim()) return;
+  ensureUtterance();
   S.emitted = newPointer;
-  const id = ++S.seq;
-  S.sentAt.set(id, now());
-  send({ t: 'chunk', id, text, lang: S.mine, heat: +S.heat.toFixed(3) });
-  logLine('you', text, '');
+  S.uttText = `${S.uttText} ${text}`.trim();
+  const msg = { t: 'chunk', id: ++S.seq, utt: S.uttId, text, lang: S.mine, heat: +S.heat.toFixed(3) };
+  send(msg);
 
-  if (S.solo) {
-    // Loop back through the same path so solo mode exercises the
-    // real pipeline rather than a shortcut.
-    receive({ t: 'chunk', id, text, lang: S.mine, heat: +S.heat.toFixed(3) });
-  }
+  // Loop back through the same path so solo mode exercises the real
+  // pipeline rather than a shortcut.
+  if (S.solo) receive(msg);
 }
 
 /* ============================================================
@@ -457,7 +480,31 @@ async function receive(msg) {
     S.theySpeak = false;
     el.railThem.classList.remove('active');
     el.heatThem.style.width = '0%';
-    S.theirLive = ''; // next utterance starts on a clean rail
+
+    const full = (msg.text || '').trim();
+    if (!full) { S.theirLive = ''; return; }
+
+    // Second pass. The chunks were translated cold, one clause at a
+    // time, because that is the only way to be fast. Now that the
+    // utterance is complete we translate the whole thing at once, where
+    // the engine can see the sentence it is actually translating, and
+    // replace the stitched-together version. The audio was already
+    // right enough to argue with; this is what gets remembered.
+    const to = S.solo ? soloTarget() : S.mine;
+    const from = msg.lang || (S.solo ? S.mine : S.theirs) || 'en';
+    const t0 = now();
+    const fixed = await translate(full, from, to);
+    el.latency.textContent = `full pass ${Math.round(now() - t0)}ms`;
+
+    S.theirLive = fixed;
+    el.liveThem.textContent = fixed;
+    el.origThem.textContent = full;
+    claim('them', fixed, full, `theirs:${msg.utt}`, msg.utt);
+    return;
+  }
+
+  if (msg.t === 'retract') {
+    markRetracted(`theirs:${msg.utt}`, msg.on !== false);
     return;
   }
 
@@ -486,20 +533,53 @@ async function receive(msg) {
 
 function soloTarget() { return S.mine === 'en' ? 'hi' : 'en'; }
 
-function logLine(side, said, src) {
+/* ---------- claims ----------
+   A finished utterance is a claim. Your own are clickable: taking one
+   back strikes it through here and on their screen at the same moment.
+   That is the mechanism for changing your mind. Saying "I take that
+   back" out loud only works if the other person catches it, believes
+   it, and knows which part you meant. */
+function claim(side, said, src, key, utt) {
   const li = document.createElement('li');
-  li.className = side;
+  li.className = side === 'you' ? 'you mine' : 'them';
+  li.dataset.key = key;
   const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
   li.innerHTML =
-    `<div class="meta">${side === 'you' ? 'YOU' : 'THEM'} · ${time}</div>` +
-    `<div class="said"></div>` +
-    (src ? '<div class="src"></div>' : '');
+    '<div class="meta"></div><div class="said"></div>' + (src ? '<div class="src"></div>' : '');
+  li.querySelector('.meta').textContent = `${side === 'you' ? 'YOU' : 'THEM'} · ${time}`;
   li.querySelector('.said').textContent = said;
   if (src) li.querySelector('.src').textContent = src;
+
+  if (side === 'you') {
+    li.title = 'Click to take this back';
+    li.onclick = () => toggleRetract(key, utt);
+  }
+
   el.log.appendChild(li);
-  el.log.parentElement.scrollTop = 1e9;
+  logMap.set(key, li);
   el.log.scrollTop = 1e9;
-  while (el.log.children.length > 200) el.log.removeChild(el.log.firstChild);
+  while (el.log.children.length > 200) {
+    const first = el.log.firstChild;
+    logMap.delete(first.dataset.key);
+    el.log.removeChild(first);
+  }
+}
+
+function toggleRetract(key, utt) {
+  const li = logMap.get(key);
+  if (!li) return;
+  const on = !li.classList.contains('retracted');
+  li.classList.toggle('retracted', on);
+  send({ t: 'retract', utt, on });
+  if (S.solo) markRetracted(`theirs:${utt}`, on);
+}
+
+function markRetracted(key, on) {
+  const li = logMap.get(key);
+  if (!li) return;
+  li.classList.toggle('retracted', on);
+  li.classList.add('flash');
+  setTimeout(() => li.classList.remove('flash'), 900);
 }
 
 /* ============================================================
