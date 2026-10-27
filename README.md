@@ -5,7 +5,7 @@
 Two people who share no language, having a real argument. Interrupting, getting
 loud, changing their minds.
 
-**Live:** _see the link in the covering email_
+**Live:** https://rider315.github.io/takraar/
 **Browser:** Chrome or Edge, desktop. Headphones required.
 
 ---
