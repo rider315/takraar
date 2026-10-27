@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>TAKRAAR</title>
+<meta name="description" content="Two people, two languages, one argument. Interrupt each other in real time." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="styles.css" />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔥</text></svg>" />
+</head>
+<body>
+
+<!-- ───────────────────────── SETUP ───────────────────────── -->
+<main id="setup" class="screen">
+  <div class="wrap">
+    <header class="brand">
+      <h1>TAKRAAR</h1>
+      <p class="tag">Do log. Do zubaan. Ek bahas.</p>
+      <p class="sub">Two people who share no language, arguing in real time. Interrupt each other. Mean it.</p>
+    </header>
+
+    <section class="card">
+      <label class="field">
+        <span>You speak</span>
+        <select id="myLang"></select>
+      </label>
+
+      <div class="modes">
+        <button id="btnCreate" class="btn primary">Start an argument</button>
+        <div class="or">or</div>
+        <form id="joinForm" class="join">
+          <input id="joinCode" maxlength="5" placeholder="CODE" autocomplete="off" spellcheck="false" />
+          <button class="btn" type="submit">Join</button>
+        </form>
+      </div>
+
+      <button id="btnSolo" class="btn ghost wide">Try it alone first</button>
+      <p class="hint">Solo mode speaks your words back to you in the other language, so you can hear the pipeline without a partner.</p>
+    </section>
+
+    <section id="waiting" class="card hidden">
+      <p class="small">Send them this code</p>
+      <div class="code" id="roomCode">----</div>
+      <p class="small" id="waitMsg">Waiting for someone to join…</p>
+      <button id="btnCancel" class="btn ghost">Cancel</button>
+    </section>
+
+    <p class="warn">Chrome or Edge on desktop. <strong>Wear headphones</strong> — both mics stay open, so speakers will feed back.</p>
+  </div>
+</main>
+
+<!-- ───────────────────────── ARGUMENT ───────────────────────── -->
+<main id="stage" class="screen hidden">
+  <header class="bar">
+    <div class="who">
+      <span class="dot" id="netDot"></span>
+      <span id="netText">connecting</span>
+    </div>
+    <div class="langpair"><span id="barMine">—</span> <span class="vs">vs</span> <span id="barTheirs">—</span></div>
+    <button id="btnLeave" class="btn tiny ghost">Leave</button>
+  </header>
+
+  <section class="rails">
+    <!-- THEM -->
+    <article class="rail them" id="railThem">
+      <div class="railhead">
+        <h2 id="themLabel">Them</h2>
+        <div class="heat"><div class="heatfill" id="heatThem"></div></div>
+      </div>
+      <div class="live" id="liveThem"><span class="idle">silent</span></div>
+      <div class="orig" id="origThem"></div>
+      <div class="cutin" id="cutinThem">they cut in</div>
+    </article>
+
+    <!-- YOU -->
+    <article class="rail you" id="railYou">
+      <div class="railhead">
+        <h2 id="youLabel">You</h2>
+        <div class="heat"><div class="heatfill" id="heatYou"></div></div>
+      </div>
+      <div class="live" id="liveYou"><span class="idle">silent</span></div>
+      <div class="orig" id="origYou"></div>
+      <div class="cutin" id="cutinYou">you cut in</div>
+    </article>
+  </section>
+
+  <section class="history">
+    <div class="histhead">
+      <h3>What's been said</h3>
+      <button id="btnMute" class="btn tiny">Mute them</button>
+    </div>
+    <ol id="log"></ol>
+  </section>
+
+  <footer class="footbar">
+    <div class="miclamp" id="micLamp"><span></span>mic</div>
+    <div class="lat" id="latency">—</div>
+  </footer>
+</main>
+
+<div id="toast" class="toast hidden"></div>
+
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
